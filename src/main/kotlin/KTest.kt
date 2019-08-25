@@ -1,4 +1,5 @@
 import com.google.gson.GsonBuilder
+import com.google.gson.annotations.Expose
 
 fun main(args: Array<String>){
     val l = listOf(TR("for_rec", "from_friend", "thankz"),
@@ -9,7 +10,13 @@ fun main(args: Array<String>){
 }
 
 open class M(val f: String, val b: String) {
-    val type = javaClass.simpleName
+    @Expose(serialize = false) val type = javaClass.simpleName
+
+    val headers: Map<String, String> = mutableMapOf(Pair(TYPE, type))
+
+    companion object {
+        const val TYPE = "type"
+    }
 }
 
 abstract class T (val fw: String, f: String, b: String): M(f, b)
