@@ -9,7 +9,7 @@ import org.junit.Test
 import org.hamcrest.CoreMatchers.*
 import org.hamcrest.MatcherAssert.assertThat
 
-abstract class T (var fw: String, f: String, b: String): Message(f, b) {
+abstract class T (var fw: String, f: String, b: String): Message(b, null, f) {
     override fun serialize() {
         headers.put("fw", fw)
     }
@@ -43,7 +43,7 @@ class MessageGsonTest {
         val l = listOf(
                 TR("for_rec", "from_friend", "thankz", "link"),
                 TE("for_response", "another_friend", "thankz for repsonse1"),
-                Message("body", "body", "from")
+                Message("body", "to", "from")
         )
         val gson = GsonBuilder()
                 .registerTypeAdapter(Message::class.java, MessageDeserializer(whitelist))
@@ -60,7 +60,7 @@ class MessageGsonTest {
                 .create()
         val listType = object : TypeToken<List<JsonObject>>() {}.type
         val parsed = parser.fromJson<List<JsonObject>>(s, listType)
-        parsed.forEach { Assert.assertNotNull(it.get("date")) }
+        parsed.forEach { Assert.assertNull(it.get("date")) }
 
         Assert.assertEquals(TR::class.java.name, parsed[0].getAsJsonObject("headers").get(Message.TYPE).asString)
         Assert.assertEquals("thankz", parsed[0].get("body").asString)

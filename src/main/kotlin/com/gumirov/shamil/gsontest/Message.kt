@@ -63,11 +63,12 @@ open class Message(@Expose val body: String? = null, @Expose val to: String? = n
         const val TYPE = "type"
         const val HEADERS = "headers"
         val dateFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
-        fun getGson(classnamesWhiteList: HashSet<String>) = GsonBuilder()
-                .registerTypeAdapter(Message::class.java, MessageDeserializer(classnamesWhiteList))
-                .registerTypeAdapterFactory(MessageAdapterFactory())
-                .excludeFieldsWithoutExposeAnnotation()
-                .setPrettyPrinting()
-                .create()
     }
 }
+
+fun createMessageGson(classnamesWhiteList: HashSet<String>) = GsonBuilder()
+            .registerTypeAdapter(Message::class.java, MessageDeserializer(classnamesWhiteList))
+            .registerTypeAdapterFactory(MessageAdapterFactory())
+            .excludeFieldsWithoutExposeAnnotation()
+            .setPrettyPrinting()
+            .create()

@@ -10,7 +10,7 @@ class EnquiryTest {
     fun test(){
         val msg = "I need a fullstack software developer with good knowledge of C++, 5 years in fintech and \"MsCS\"."
         val e = SpecialistEnquiryMessage("software engineer", msg, "to")
-        val gson = Message.getGson(hashSetOf(SpecialistEnquiryMessage::class.java.name))
+        val gson = createMessageGson(hashSetOf(SpecialistEnquiryMessage::class.java.name))
         val serialized = gson.toJson(e)
         println(serialized)
         val parser = GsonBuilder()
@@ -21,7 +21,7 @@ class EnquiryTest {
         Assert.assertEquals("software engineer", parsed.getAsJsonObject(Message.HEADERS).get(SpecialistEnquiryMessage.PROFESSION).asString)
         Assert.assertEquals("to", parsed.get("to").asString)
 
-        val deserialized = Message.getGson(hashSetOf(SpecialistEnquiryMessage::class.java.name)).fromJson<Message>(serialized, Message::class.java)
+        val deserialized = createMessageGson(hashSetOf(SpecialistEnquiryMessage::class.java.name)).fromJson<Message>(serialized, Message::class.java)
         Assert.assertTrue(deserialized is SpecialistEnquiryMessage)
         Assert.assertEquals("software engineer", (deserialized as SpecialistEnquiryMessage).profession)
         Assert.assertEquals("to", deserialized.to)
