@@ -9,7 +9,35 @@ import org.junit.Test
 import org.hamcrest.CoreMatchers.*
 import org.hamcrest.MatcherAssert.assertThat
 
+abstract class T (var fw: String, f: String, b: String): Message(f, b) {
+    override fun serialize() {
+        headers.put("fw", fw)
+    }
+
+    override fun deserialize() {
+        if (headers.containsKey("fw")) fw = headers.get("fw")!!
+    }
+}
+
+class TR(fw: String, f: String, b: String, var link: String?) : T(fw, f, b) {
+    override fun serialize() {
+        super.serialize()
+        val link = this.link
+        if (link != null) headers.put("link", link)
+    }
+
+    override fun deserialize() {
+        super.deserialize()
+        link = headers.get("link")
+    }
+}
+
+class TE(fw: String, f: String, b: String) : T(fw, f, b)
+
 class MessageGsonTest {
+    companion object {
+        val whitelist = hashSetOf(TR::class.java.name, TE::class.java.name)
+    }
     @Test
     fun serializationTest() {
         val l = listOf(
@@ -18,7 +46,7 @@ class MessageGsonTest {
                 Message("from", "body")
         )
         val gson = GsonBuilder()
-                .registerTypeAdapter(Message::class.java, MessageDeserializer())
+                .registerTypeAdapter(Message::class.java, MessageDeserializer(whitelist))
                 .registerTypeAdapterFactory(MessageAdapterFactory())
                 .excludeFieldsWithoutExposeAnnotation()
                 .setPrettyPrinting()
@@ -54,7 +82,7 @@ class MessageGsonTest {
     fun deserializeTest() {
         val listType = object : TypeToken<List<Message>>() {}.type
         val gson = GsonBuilder()
-                .registerTypeAdapter(Message::class.java, MessageDeserializer())
+                .registerTypeAdapter(Message::class.java, MessageDeserializer(whitelist))
                 .registerTypeAdapterFactory(MessageAdapterFactory())
                 .excludeFieldsWithoutExposeAnnotation()
                 .setPrettyPrinting()
