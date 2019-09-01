@@ -42,7 +42,7 @@ class MessageDeserializer(private val whitelistFQCN: HashSet<String>): JsonDeser
     }
 }
 
-open class Message(@Expose val from: String? = null, @Expose val body: String? = null, @Expose val to: String? = null, @Expose val date: String? = null) {
+open class Message(@Expose val body: String? = null, @Expose val to: String? = null, @Expose val from: String? = null, @Expose val date: String? = null) {
     @Expose(serialize = false)
     private val type = javaClass.name
 
@@ -63,5 +63,11 @@ open class Message(@Expose val from: String? = null, @Expose val body: String? =
         const val TYPE = "type"
         const val HEADERS = "headers"
         val dateFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
+        fun getGson(classnamesWhiteList: HashSet<String>) = GsonBuilder()
+                .registerTypeAdapter(Message::class.java, MessageDeserializer(classnamesWhiteList))
+                .registerTypeAdapterFactory(MessageAdapterFactory())
+                .excludeFieldsWithoutExposeAnnotation()
+                .setPrettyPrinting()
+                .create()
     }
 }

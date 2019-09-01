@@ -43,7 +43,7 @@ class MessageGsonTest {
         val l = listOf(
                 TR("for_rec", "from_friend", "thankz", "link"),
                 TE("for_response", "another_friend", "thankz for repsonse1"),
-                Message("from", "body")
+                Message("body", "body", "from")
         )
         val gson = GsonBuilder()
                 .registerTypeAdapter(Message::class.java, MessageDeserializer(whitelist))
@@ -76,6 +76,7 @@ class MessageGsonTest {
         Assert.assertEquals(Message::class.java.name, parsed[2].getAsJsonObject("headers").get(Message.TYPE).asString)
         Assert.assertEquals("body", parsed[2].get("body").asString)
         Assert.assertEquals("from", parsed[2].get("from").asString)
+        Assert.assertEquals("to", parsed[2].get("to").asString)
     }
 
     @Test
@@ -132,5 +133,14 @@ class MessageGsonTest {
         Assert.assertEquals("a8724sd34r", (parsed[0] as TR).link)
         Assert.assertEquals("another_friend", parsed[0].from)
         Assert.assertEquals("thankz for repsonse1", parsed[0].body)
+
+        //deserialize existing class type as Message
+        val json2 = """{
+            "headers":{
+                "type": "java.lang.String"
+            }
+          }"""
+        val expectedMessage = gson.fromJson<Message>(json2, Message::class.java)
+        Assert.assertTrue(expectedMessage is Message)
     }
 }
