@@ -10,6 +10,33 @@ import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.*
 
+open class Message(@Expose val body: String? = null,
+                   @Expose val to: String? = null,
+                   @Expose val from: String? = null,
+                   @Expose val date: String? = null) {
+    @Expose(serialize = false, deserialize = false)
+    private val type = javaClass.name
+
+    @Expose
+    val headers: MutableMap<String, String> = mutableMapOf(kotlin.Pair(TYPE, type))
+
+    @Throws(ParseException::class)
+    fun getDate(): Date = dateFormatter.parse(this.date)
+
+    override fun toString(): String {
+        return "$type(from='$from', body='$body', type='$type', headers:\n  $headers\n)"
+    }
+
+    open fun serialize(){}
+    open fun deserialize(){}
+
+    companion object {
+        const val TYPE = "type"
+        const val HEADERS = "headers"
+        val dateFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
+    }
+}
+
 class MessageAdapterFactory: TypeAdapterFactory {
     override fun <T> create(gson: Gson?, type: TypeToken<T>?): TypeAdapter<T> {
         val adapterDelegate = gson?.getDelegateAdapter(this, type)
@@ -42,33 +69,25 @@ class MessageDeserializer(private val whitelistFQCN: HashSet<String>): JsonDeser
     }
 }
 
-open class Message(@Expose val body: String? = null, @Expose val to: String? = null, @Expose val from: String? = null, @Expose val date: String? = null) {
-    @Expose(serialize = false)
-    private val type = javaClass.name
-
-    @Expose
-    val headers: MutableMap<String, String> = mutableMapOf(Pair(TYPE, type))
-
-    @Throws(ParseException::class)
-    fun getDate(): Date = dateFormatter.parse(this.date)
-
-    override fun toString(): String {
-        return "$type(from='$from', body='$body', type='$type', headers:\n  $headers\n)"
-    }
-
-    open fun serialize(){}
-    open fun deserialize(){}
-
-    companion object {
-        const val TYPE = "type"
-        const val HEADERS = "headers"
-        val dateFormatter = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
-    }
-}
-
 fun createMessageGson(classnamesWhiteList: HashSet<String>) = GsonBuilder()
             .registerTypeAdapter(Message::class.java, MessageDeserializer(classnamesWhiteList))
             .registerTypeAdapterFactory(MessageAdapterFactory())
             .excludeFieldsWithoutExposeAnnotation()
             .setPrettyPrinting()
             .create()
+
+class SpecialistEnquiryMessage(var profession: String, message: String?, to: String, from: String? = null): Message(message, to, from) {
+    override fun serialize() {
+        super.serialize()
+        headers.put(PROFESSION, profession)
+    }
+
+    override fun deserialize() {
+        super.deserialize()
+        profession = headers.get(PROFESSION) ?: ""
+    }
+
+    companion object {
+        const val PROFESSION = "profession"
+    }
+}

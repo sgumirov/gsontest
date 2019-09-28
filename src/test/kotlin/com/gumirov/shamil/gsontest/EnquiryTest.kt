@@ -28,19 +28,3 @@ class EnquiryTest {
         Assert.assertEquals(msg, deserialized.body)
     }
 }
-
-class SpecialistEnquiryMessage(var profession: String, message: String?, to: String, from: String? = null): Message(message, to, from) {
-    override fun serialize() {
-        super.serialize()
-        headers.put(PROFESSION, profession)
-    }
-
-    override fun deserialize() {
-        super.deserialize()
-        profession = headers.get(PROFESSION) ?: ""
-    }
-
-    companion object {
-        const val PROFESSION = "profession"
-    }
-}
