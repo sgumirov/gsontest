@@ -11,13 +11,13 @@ import java.util.*
 /**
  * Transport level basic class.
  */
-data class TMessage constructor(
+data class NetMessage constructor(
         @Expose var to: String? = null,
         @Expose var from: String? = null,
         @Expose var body: String? = null,
         @Expose var date: String? = null,
         @Expose @SerializedName("_id") var id: String? = null,
-        @Expose(serialize = false, deserialize = false) var type: String = TMessage::class.java.name,
+        @Expose(serialize = false, deserialize = false) var type: String = NetMessage::class.java.name,
         @Expose var headers: MutableMap<String, String> = mutableMapOf(kotlin.Pair(TYPE, type))
 ) {
     companion object {
@@ -25,10 +25,8 @@ data class TMessage constructor(
         const val HEADERS = "headers"
     }
 
-//    constructor() : this("")
-
     override fun equals(other: Any?): Boolean {
-        return super.equals(other) || other is TMessage && (
+        return super.equals(other) || other is NetMessage && (
                 other.type == type && other.to == to && other.id == id && other.from == from && other.date == date &&
                         //other.headers.size == headers.size && headers.keys.containsAll(other.headers.keys) &&
                         other.headers.equals(headers)
@@ -40,35 +38,50 @@ data class TMessage constructor(
     }
 }
 
-class TMessageDeserializer: JsonDeserializer<TMessage> {
-    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): TMessage {
+/**
+ * Transport level JSON deserializer.
+ */
+class NetMessageDeserializer: JsonDeserializer<NetMessage> {
+    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): NetMessage {
         val jobj = json!!.asJsonObject //?: return null
-        val klass = jobj[TMessage.HEADERS]?.asJsonObject?.get(TMessage.TYPE)?.asString
-        return Gson().fromJson(jobj, TMessage::class.java).also {
-            it.headers.put(TMessage.TYPE, klass ?: TMessage::class.java.name)
-            it.type = klass ?: TMessage::class.java.name
+        val klass = jobj[NetMessage.HEADERS]?.asJsonObject?.get(NetMessage.TYPE)?.asString
+        return Gson().fromJson(jobj, NetMessage::class.java).also {
+            it.headers.put(NetMessage.TYPE, klass ?: NetMessage::class.java.name)
+            it.type = klass ?: NetMessage::class.java.name
         }
     }
 }
 
+/**
+ * Helper function to set up gson.
+ */
 fun createJsonParser() = GsonBuilder()
-        .registerTypeAdapter(TMessage::class.java, TMessageDeserializer())
+        .registerTypeAdapter(NetMessage::class.java, NetMessageDeserializer())
         .excludeFieldsWithoutExposeAnnotation()
         .setPrettyPrinting()
         .create()
 
+/**
+ * Base class for domain-level. Any descendants maps to [NetMessage] with help of [serialize] and [deserialize]. Custom
+ * fields and type are stored in headers.
+ */
 abstract class Message (var to: String? = null, var from: String? = null, var body: String? = null, var date: DateTime? = null, var id: String? = null) {
     companion object {
-        private val dateParser = ISODateTimeFormat.dateTimeParser() //SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
-        private val datePrinter = ISODateTimeFormat.dateTime() //SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
+        private val dateParser = ISODateTimeFormat.dateTimeParser()
+        private val datePrinter = ISODateTimeFormat.dateTime()
         fun parseDate(date: String?): DateTime? = if (date == null) null else dateParser.parseDateTime(date)
         fun encodeDate(date: DateTime?): String? = if (date == null) null else datePrinter.print(date)
         fun encodeDate(date: Date?): String? = if (date == null) null else datePrinter.print(DateTime(date))
     }
 
-//    constructor(): this(to = null)
-
+    /**
+     * Write all custom fields to [headers] map provided.
+     */
     abstract fun serialize(headers: MutableMap<String, String>)
+
+    /**
+     * Read all custom fields from [headers] map.
+     */
     abstract fun deserialize(headers: Map<String, String>)
 
     override fun toString(): String {
@@ -76,9 +89,12 @@ abstract class Message (var to: String? = null, var from: String? = null, var bo
     }
 }
 
+/**
+ * Transforms object between transport ([NetMessage]) and domain (descendants of [Message]) levels.
+ */
 class Transformer(val whitelist: Set<String>)
 {
-    fun deserialize(source: TMessage): Message? {
+    fun deserialize(source: NetMessage): Message {
         if (whitelist.contains(source.type)) {
             return (Class.forName(source.type).getConstructor().newInstance() as Message).also { with(it) {
                 to = source.to
@@ -89,53 +105,18 @@ class Transformer(val whitelist: Set<String>)
                 deserialize(source.headers)
             }}
         }
-        return null
+        throw IllegalArgumentException("NetMessage type class not in whitelist: " + source.type)
     }
 
-    fun serialize(source: Message): TMessage? {
+    fun serialize(source: Message): NetMessage {
         val klass = source::class.java.name
         if (whitelist.contains(klass)){
-            return TMessage(source.to, source.from, source.body, Message.encodeDate(source.date), source.id).also {
+            return NetMessage(source.to, source.from, source.body, Message.encodeDate(source.date), source.id).also {
                 source.serialize(it.headers)
                 it.type = klass
-                it.headers.put(TMessage.TYPE, klass)
+                it.headers.put(NetMessage.TYPE, klass)
             }
         }
-        return null
-    }
-}
-
-class Enquiry(body: String? = null, to: String? = null, from: String? = null, date: Date? = null, id: String? = null)
-    : Message(to, from, body, DateTime(date), id)
-{
-    companion object {
-        private const val PROFESSION = "profession"
-        private const val URGENT = "urgent"
-    }
-
-    lateinit var profession: String
-    var isUrgent: Boolean = false
-
-//    constructor(): this(null)
-
-    constructor(body: String?, profession: String, isUrgent: Boolean, to: String?, from: String?, date: Date?, id: String?):
-            this(body, to, from, date, id)
-    {
-        this.profession = profession
-        this.isUrgent = isUrgent
-    }
-
-    override fun deserialize(headers: Map<String, String>) {
-        profession = headers.getOrDefault(PROFESSION, "")
-        isUrgent = java.lang.Boolean.parseBoolean(headers.get(URGENT))
-    }
-
-    override fun serialize(headers: MutableMap<String, String>) {
-        headers.put(URGENT, isUrgent.toString())
-        headers.put(PROFESSION, profession)
-    }
-
-    override fun toString(): String {
-        return "Enquiry(profession='$profession', isUrgent=$isUrgent) "+super.toString()
+        throw IllegalArgumentException("NetMessage type class not in whitelist: " + klass)
     }
 }
